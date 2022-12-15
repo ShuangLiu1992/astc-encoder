@@ -105,7 +105,6 @@ macro(astcenc_set_properties NAME)
         PRIVATE
             # Use pthreads on Linux/macOS
             $<$<PLATFORM_ID:Linux,Darwin>:-pthread>
-            -gdwarf-4
 
             # MSVC compiler defines
             $<$<CXX_COMPILER_ID:MSVC>:/EHsc>
@@ -137,6 +136,8 @@ macro(astcenc_set_properties NAME)
             $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wno-reserved-identifier>
             $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wno-cast-function-type>
 
+            # Force DWARF4 for Valgrind profiling
+            $<$<CXX_COMPILER_ID:Clang>:-gdwarf-4>
             $<$<CXX_COMPILER_ID:Clang>:-Wdocumentation>)
 
     target_link_options(${NAME}

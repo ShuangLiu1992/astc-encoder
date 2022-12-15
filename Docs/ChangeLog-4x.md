@@ -9,12 +9,27 @@ clocked at 4.2 GHz, running `astcenc` using AVX2 and 6 threads.
 <!-- ---------------------------------------------------------------------- -->
 ## 4.2.0
 
-**Status:** In Development
+**Status:** November 2022
 
 The 4.2.0 release is an optimization release. There are significant performance
-improvements and minor image quality changes in this release.
+improvements, minor image quality improvements, and library interface changes in
+this release.
+
+Reminder - the codec library API is not designed to be binary compatible across
+versions. We always recommend rebuilding your client-side code using the updated
+`astcenc.h` header.
 
 * **General:**
+  * **Bug-fix:** Compression for RGB and RGBA base+offset encodings no
+    longer generate endpoints with the incorrect blue-contract behavior.
+  * **Bug-fix:** Lowest channel correlation calculation now correctly ignores
+    constant color channels for the purposes of filtering 2 plane encodings.
+    On average this improves both performance and image quality.
+  * **Bug-fix:** ISA compatibility now checked in `config_init()` as well as
+    in `context_alloc()`.
+  * **Change:** Removed the low-weight count optimization, as more recent
+    changes had significantly reduced its performance benefit. Option removed
+    from both command line and configuration structure.
   * **Feature:** The `-exhaustive` mode now runs full trials on more
     partitioning candidates and block candidates. This improves image quality
     by 0.1 to 0.25 dB, but slows down compression by 3x. The `-verythorough`
@@ -29,8 +44,8 @@ improvements and minor image quality changes in this release.
     3/4 partitions.
   * **Feature:** The compressor can now run trials on a variable number of
     candidate partitionings, allowing high quality modes to explore more of the
-    search space at the expensive of slower compression. The number of trials
-    is independently configurable for 2/3/4 partition cases.
+    search space at the expense of slower compression. The number of trials is
+    independently configurable for 2/3/4 partition cases.
   * **Optimization:** Introduce early-out threshold for 2/3/4 partition
     searches based on the results after 1 of 2 trials. This significantly
     improves performance for `-medium` and `-thorough` searches, for a minor
@@ -44,6 +59,18 @@ improvements and minor image quality changes in this release.
     partition selection algorithm.
   * **Optimization:** Removed obsolete channel scaling from partition
     `avgs_and_dirs()` calculation.
+
+### Performance:
+
+Key for charts:
+
+* Color = block size (see legend).
+* Letter = image format (N = normal map, G = grayscale, L = LDR, H = HDR).
+
+**Relative performance vs 4.0 and 4.1 release:**
+
+![Relative scores 4.2 vs 4.0](./ChangeLogImg/relative-4.0-to-4.2.png)
+
 
 <!-- ---------------------------------------------------------------------- -->
 ## 4.1.0

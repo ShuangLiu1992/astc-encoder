@@ -649,7 +649,8 @@ class CLIPTest(CLITestBase):
         """
         Test all valid presets are accepted
         """
-        presets = ["-fastest", "-fast", "-medium", "-thorough", "-exhaustive"]
+        presets = ["-fastest", "-fast", "-medium",
+                   "-thorough", "-verythorough", "-exhaustive"]
 
         imIn = self.get_ref_image_path("LDR", "input", "A")
         imOut = self.get_tmp_image_path("LDR", "decomp")
@@ -680,6 +681,19 @@ class CLIPTest(CLITestBase):
                 if tli.Image.is_format_supported(imgFormat):
                     colIn = tli.Image(imIn).get_colors((7, 7))
                     colOut = tli.Image(imOut).get_colors((7, 7))
+
+                    # Catch exception and add fallback for tga handling
+                    # having unstable origin in ImageMagick
+                    try:
+                        self.assertColorSame(colIn, colOut)
+                        continue
+                    except AssertionError as ex:
+                        if imgFormat != "tga":
+                            raise ex
+
+                    # Try yflipped TGA image
+                    colIn = tli.Image(imIn).get_colors((7, 7))
+                    colOut = tli.Image(imOut).get_colors((7, 1))
                     self.assertColorSame(colIn, colOut)
 
     def test_valid_uncomp_ldr_output_formats(self):
@@ -1064,7 +1078,7 @@ class CLIPTest(CLITestBase):
         # RMSE should get worse (higher) if we reduce search space
         self.assertGreater(testRMSE, refRMSE)
 
-    def test_partition_index_limit(self):
+    def test_2partition_index_limit(self):
         """
         Test partition index limit.
         """
@@ -1079,7 +1093,51 @@ class CLIPTest(CLITestBase):
         self.exec(command)
         refRMSE = sum(self.get_channel_rmse(inputFile, decompFile))
 
-        command += ["-partitionindexlimit", "1"]
+        command += ["-2partitionindexlimit", "1"]
+        self.exec(command)
+        testRMSE = sum(self.get_channel_rmse(inputFile, decompFile))
+
+        # RMSE should get worse (higher) if we reduce search space
+        self.assertGreater(testRMSE, refRMSE)
+
+    def test_3partition_index_limit(self):
+        """
+        Test partition index limit.
+        """
+        inputFile = "./Test/Images/Small/LDR-RGBA/ldr-rgba-00.png"
+        decompFile = self.get_tmp_image_path("LDR", "decomp")
+
+        # Compute the basic image without any channel weights
+        command = [
+            self.binary, "-tl",
+            inputFile, decompFile, "4x4", "-medium"]
+
+        self.exec(command)
+        refRMSE = sum(self.get_channel_rmse(inputFile, decompFile))
+
+        command += ["-3partitionindexlimit", "1"]
+        self.exec(command)
+        testRMSE = sum(self.get_channel_rmse(inputFile, decompFile))
+
+        # RMSE should get worse (higher) if we reduce search space
+        self.assertGreater(testRMSE, refRMSE)
+
+    def test_4partition_index_limit(self):
+        """
+        Test partition index limit.
+        """
+        inputFile = "./Test/Images/Small/LDR-RGBA/ldr-rgba-00.png"
+        decompFile = self.get_tmp_image_path("LDR", "decomp")
+
+        # Compute the basic image without any channel weights
+        command = [
+            self.binary, "-tl",
+            inputFile, decompFile, "4x4", "-medium"]
+
+        self.exec(command)
+        refRMSE = sum(self.get_channel_rmse(inputFile, decompFile))
+
+        command += ["-4partitionindexlimit", "1"]
         self.exec(command)
         testRMSE = sum(self.get_channel_rmse(inputFile, decompFile))
 
@@ -1733,9 +1791,9 @@ class CLINTest(CLITestBase):
         # Run the command, incrementally omitting arguments
         self.exec_with_omit(command, 7)
 
-    def test_cl_partitionlimit_missing_args(self):
+    def test_cl_2partitionlimit_missing_args(self):
         """
-        Test -cl with -partitionindexlimit and missing arguments.
+        Test -cl with -2partitionindexlimit and missing arguments.
         """
         # Build a valid command
         command = [
@@ -1743,7 +1801,37 @@ class CLINTest(CLITestBase):
             self.get_ref_image_path("LDR", "input", "A"),
             self.get_tmp_image_path("LDR", "comp"),
             "4x4", "-fast",
-            "-partitionindexlimit", "3"]
+            "-2partitionindexlimit", "3"]
+
+        # Run the command, incrementally omitting arguments
+        self.exec_with_omit(command, 7)
+
+    def test_cl_3partitionlimit_missing_args(self):
+        """
+        Test -cl with -3partitionindexlimit and missing arguments.
+        """
+        # Build a valid command
+        command = [
+            self.binary, "-cl",
+            self.get_ref_image_path("LDR", "input", "A"),
+            self.get_tmp_image_path("LDR", "comp"),
+            "4x4", "-fast",
+            "-3partitionindexlimit", "3"]
+
+        # Run the command, incrementally omitting arguments
+        self.exec_with_omit(command, 7)
+
+    def test_cl_4partitionlimit_missing_args(self):
+        """
+        Test -cl with -4partitionindexlimit and missing arguments.
+        """
+        # Build a valid command
+        command = [
+            self.binary, "-cl",
+            self.get_ref_image_path("LDR", "input", "A"),
+            self.get_tmp_image_path("LDR", "comp"),
+            "4x4", "-fast",
+            "-4partitionindexlimit", "3"]
 
         # Run the command, incrementally omitting arguments
         self.exec_with_omit(command, 7)

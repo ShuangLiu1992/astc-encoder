@@ -99,7 +99,6 @@ static bool realign_weights_undecimated(
 	{
 		unpack_color_endpoints(decode_mode,
 		                       scb.color_formats[pa_idx],
-		                       scb.get_color_quant_mode(),
 		                       scb.color_values[pa_idx],
 		                       rgb_hdr, alpha_hdr,
 		                       endpnt0[pa_idx],
@@ -225,7 +224,6 @@ static bool realign_weights_decimated(
 	{
 		unpack_color_endpoints(decode_mode,
 		                       scb.color_formats[pa_idx],
-		                       scb.get_color_quant_mode(),
 		                       scb.color_values[pa_idx],
 		                       rgb_hdr, alpha_hdr,
 		                       endpnt0[pa_idx],
@@ -424,11 +422,7 @@ static float compress_symbolic_block_for_partition_1plane(
 
 	// For each mode, use the angular method to compute a shift
 	compute_angular_endpoints_1plane(
-	    config.tune_low_weight_count_limit,
-	    only_always, bsd,
-	    dec_weights_ideal,
-	    max_weight_quant,
-	    tmpbuf);
+	    only_always, bsd, dec_weights_ideal, max_weight_quant, tmpbuf);
 
 	float* weight_low_value = tmpbuf.weight_low_value1;
 	float* weight_high_value = tmpbuf.weight_high_value1;
@@ -795,9 +789,7 @@ static float compress_symbolic_block_for_partition_2planes(
 	float min_wt_cutoff2 = hmin_s(select(err_max, min_ep2, err_mask));
 
 	compute_angular_endpoints_2planes(
-	    config.tune_low_weight_count_limit,
-	    bsd, dec_weights_ideal, max_weight_quant,
-	    tmpbuf);
+	    bsd, dec_weights_ideal, max_weight_quant, tmpbuf);
 
 	// For each mode (which specifies a decimation and a quantization):
 	//     * Compute number of bits needed for the quantized weights
@@ -1130,12 +1122,13 @@ static float prepare_block_statistics(
 
 	aa_var -= as * (as * rpt);
 
-	rg_cov *= astc::rsqrt(astc::max(rr_var * gg_var, 1e-30f));
-	rb_cov *= astc::rsqrt(astc::max(rr_var * bb_var, 1e-30f));
-	ra_cov *= astc::rsqrt(astc::max(rr_var * aa_var, 1e-30f));
-	gb_cov *= astc::rsqrt(astc::max(gg_var * bb_var, 1e-30f));
-	ga_cov *= astc::rsqrt(astc::max(gg_var * aa_var, 1e-30f));
-	ba_cov *= astc::rsqrt(astc::max(bb_var * aa_var, 1e-30f));
+	// These will give a NaN if a channel is constant - these are fixed up in the next step
+	rg_cov *= astc::rsqrt(rr_var * gg_var);
+	rb_cov *= astc::rsqrt(rr_var * bb_var);
+	ra_cov *= astc::rsqrt(rr_var * aa_var);
+	gb_cov *= astc::rsqrt(gg_var * bb_var);
+	ga_cov *= astc::rsqrt(gg_var * aa_var);
+	ba_cov *= astc::rsqrt(bb_var * aa_var);
 
 	if (astc::isnan(rg_cov)) rg_cov = 1.0f;
 	if (astc::isnan(rb_cov)) rb_cov = 1.0f;
@@ -1144,7 +1137,7 @@ static float prepare_block_statistics(
 	if (astc::isnan(ga_cov)) ga_cov = 1.0f;
 	if (astc::isnan(ba_cov)) ba_cov = 1.0f;
 
-	float lowest_correlation = astc::min(fabsf(rg_cov), fabsf(rb_cov));
+	float lowest_correlation = astc::min(fabsf(rg_cov),      fabsf(rb_cov));
 	lowest_correlation       = astc::min(lowest_correlation, fabsf(ra_cov));
 	lowest_correlation       = astc::min(lowest_correlation, fabsf(gb_cov));
 	lowest_correlation       = astc::min(lowest_correlation, fabsf(ga_cov));
@@ -1286,13 +1279,13 @@ void compress_block(
 	// compression and slightly reduces image quality.
 
 	float errorval_mult[2] {
-		1.0f / ctx.config.tune_mode0_mse_overshoot,
+		1.0f / ctx.config.tune_mse_overshoot,
 		1.0f
 	};
 
-	static const float errorval_overshoot = 1.0f / ctx.config.tune_refinement_mse_overshoot;
+	static const float errorval_overshoot = 1.0f / ctx.config.tune_mse_overshoot;
 
-	// Only enable MODE0 fast path (trial 0) if 2D and more than 25 texels
+	// Only enable MODE0 fast path (trial 0) if 2D, and more than 25 texels
 	int start_trial = 1;
 	if ((bsd.texel_count >= TUNE_MIN_TEXELS_MODE0_FASTPATH) && (bsd.zdim == 1))
 	{

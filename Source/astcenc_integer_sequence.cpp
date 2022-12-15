@@ -24,6 +24,7 @@
 #include <array>
 
 /** @brief Unpacked quint triplets <low,middle,high> for each packed value */
+// TODO: Bitpack these into a uint16_t?
 static const uint8_t quints_of_integer[128][3] {
 	{0, 0, 0}, {1, 0, 0}, {2, 0, 0}, {3, 0, 0},
 	{4, 0, 0}, {0, 4, 0}, {4, 4, 0}, {4, 4, 4},
@@ -99,6 +100,7 @@ static const uint8_t integer_of_quints[5][5][5] {
 };
 
 /** @brief Unpacked trit quintuplets <low,...,high> for each packed value */
+// TODO: Bitpack these into a uint16_t?
 static const uint8_t trits_of_integer[256][5] {
 	{0, 0, 0, 0, 0}, {1, 0, 0, 0, 0}, {2, 0, 0, 0, 0}, {0, 0, 2, 0, 0},
 	{0, 1, 0, 0, 0}, {1, 1, 0, 0, 0}, {2, 1, 0, 0, 0}, {1, 0, 2, 0, 0},
@@ -334,9 +336,6 @@ static const uint8_t integer_of_trits[3][3][3][3][3] {
  */
 struct btq_count
 {
-	/** @brief The quantization level. */
-	uint8_t quant;
-
 	/** @brief The number of bits. */
 	uint8_t bits;
 
@@ -351,27 +350,27 @@ struct btq_count
  * @brief The table of bits, trits, and quints needed for a quant encode.
  */
 static const std::array<btq_count, 21> btq_counts {{
-	{   QUANT_2, 1, 0, 0 },
-	{   QUANT_3, 0, 1, 0 },
-	{   QUANT_4, 2, 0, 0 },
-	{   QUANT_5, 0, 0, 1 },
-	{   QUANT_6, 1, 1, 0 },
-	{   QUANT_8, 3, 0, 0 },
-	{  QUANT_10, 1, 0, 1 },
-	{  QUANT_12, 2, 1, 0 },
-	{  QUANT_16, 4, 0, 0 },
-	{  QUANT_20, 2, 0, 1 },
-	{  QUANT_24, 3, 1, 0 },
-	{  QUANT_32, 5, 0, 0 },
-	{  QUANT_40, 3, 0, 1 },
-	{  QUANT_48, 4, 1, 0 },
-	{  QUANT_64, 6, 0, 0 },
-	{  QUANT_80, 4, 0, 1 },
-	{  QUANT_96, 5, 1, 0 },
-	{ QUANT_128, 7, 0, 0 },
-	{ QUANT_160, 5, 0, 1 },
-	{ QUANT_192, 6, 1, 0 },
-	{ QUANT_256, 8, 0, 0 }
+	{ 1, 0, 0 }, // QUANT_2
+	{ 0, 1, 0 }, // QUANT_3
+	{ 2, 0, 0 }, // QUANT_4
+	{ 0, 0, 1 }, // QUANT_5
+	{ 1, 1, 0 }, // QUANT_6
+	{ 3, 0, 0 }, // QUANT_8
+	{ 1, 0, 1 }, // QUANT_10
+	{ 2, 1, 0 }, // QUANT_12
+	{ 4, 0, 0 }, // QUANT_16
+	{ 2, 0, 1 }, // QUANT_20
+	{ 3, 1, 0 }, // QUANT_24
+	{ 5, 0, 0 }, // QUANT_32
+	{ 3, 0, 1 }, // QUANT_40
+	{ 4, 1, 0 }, // QUANT_48
+	{ 6, 0, 0 }, // QUANT_64
+	{ 4, 0, 1 }, // QUANT_80
+	{ 5, 1, 0 }, // QUANT_96
+	{ 7, 0, 0 }, // QUANT_128
+	{ 5, 0, 1 }, // QUANT_160
+	{ 6, 1, 0 }, // QUANT_192
+	{ 8, 0, 0 }  // QUANT_256
 }};
 
 /**
@@ -382,14 +381,8 @@ static const std::array<btq_count, 21> btq_counts {{
  */
 struct ise_size
 {
-	/** @brief The quantization level. */
-	uint8_t quant;
-
 	/** @brief The scaling parameter. */
 	uint8_t scale;
-
-	/** @brief The rounding parameter. */
-	uint8_t round;
 
 	/** @brief The divisor parameter. */
 	uint8_t divisor;
@@ -399,27 +392,27 @@ struct ise_size
  * @brief The table of scale, round, and divisors needed for quant sizing.
  */
 static const std::array<ise_size, 21> ise_sizes {{
-	{   QUANT_2,  1, 0, 1 },
-	{   QUANT_3,  8, 4, 5 },
-	{   QUANT_4,  2, 0, 1 },
-	{   QUANT_5,  7, 2, 3 },
-	{   QUANT_6, 13, 4, 5 },
-	{   QUANT_8,  3, 0, 1 },
-	{  QUANT_10, 10, 2, 3 },
-	{  QUANT_12, 18, 4, 5 },
-	{  QUANT_16,  4, 0, 1 },
-	{  QUANT_20, 13, 2, 3 },
-	{  QUANT_24, 23, 4, 5 },
-	{  QUANT_32,  5, 0, 1 },
-	{  QUANT_40, 16, 2, 3 },
-	{  QUANT_48, 28, 4, 5 },
-	{  QUANT_64,  6, 0, 1 },
-	{  QUANT_80, 19, 2, 3 },
-	{  QUANT_96, 33, 4, 5 },
-	{ QUANT_128,  7, 0, 1 },
-	{ QUANT_160, 22, 2, 3 },
-	{ QUANT_192, 38, 4, 5 },
-	{ QUANT_256,  8, 0, 1 }
+	{  1, 1 }, // QUANT_2
+	{  8, 5 }, // QUANT_3
+	{  2, 1 }, // QUANT_4
+	{  7, 3 }, // QUANT_5
+	{ 13, 5 }, // QUANT_6
+	{  3, 1 }, // QUANT_8
+	{ 10, 3 }, // QUANT_10
+	{ 18, 5 }, // QUANT_12
+	{  4, 1 }, // QUANT_16
+	{ 13, 3 }, // QUANT_20
+	{ 23, 5 }, // QUANT_24
+	{  5, 1 }, // QUANT_32
+	{ 16, 3 }, // QUANT_40
+	{ 28, 5 }, // QUANT_48
+	{  6, 1 }, // QUANT_64
+	{ 19, 3 }, // QUANT_80
+	{ 33, 5 }, // QUANT_96
+	{  7, 1 }, // QUANT_128
+	{ 22, 3 }, // QUANT_160
+	{ 38, 5 }, // QUANT_192
+	{  8, 1 }  // QUANT_256
 }};
 
 /* See header for documentation. */
@@ -435,7 +428,7 @@ unsigned int get_ise_sequence_bitcount(
 	}
 
 	auto& entry = ise_sizes[quant_level];
-	return (entry.scale * character_count + entry.round) / entry.divisor;
+	return (entry.scale * character_count + entry.divisor - 1) / entry.divisor;
 }
 
 /**
