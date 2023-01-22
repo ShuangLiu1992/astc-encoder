@@ -25,8 +25,6 @@ if(MSVC)
 endif()
 
 project(astcencoder VERSION 4.2.0)
-include(${CMAKE_BINARY_DIR}/../conanbuildinfo.cmake)
-conan_basic_setup()
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 
