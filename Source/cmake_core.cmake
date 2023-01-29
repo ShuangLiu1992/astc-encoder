@@ -27,7 +27,6 @@ set(GNU_LIKE "GNU,Clang,AppleClang")
 set(CLANG_LIKE "Clang,AppleClang")
 
 add_library(${ASTC_TARGET}-static
-    STATIC
         astcenc_averages_and_directions.cpp
         astcenc_block_sizes.cpp
         astcenc_color_quantize.cpp
