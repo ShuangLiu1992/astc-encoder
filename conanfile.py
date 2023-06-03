@@ -20,14 +20,19 @@ class ASTCENCODERConan(ConanFile):
             tc.variables["ISA_NONE"] = True
         tc.generate()
 
+    def export_sources(self):
+        conan.tools.files.copy(self, "*", self.recipe_folder, self.export_sources_folder)
+
     def layout(self):
         cmake_layout(self)
-
-    def package(self):
+    
+    def build(self):
         cmake = CMake(self)
         cmake.configure()
         cmake.build()
         cmake.install()
+
+    def package(self):
         lib_folder = os.path.join(self.package_folder, "lib")
         inc_folder = os.path.join(self.package_folder, "include")
         src_folder = os.path.join(self.build_folder, "Source")
