@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // ----------------------------------------------------------------------------
-// Copyright 2011-2022 Arm Limited
+// Copyright 2011-2023 Arm Limited
 //
 // Licensed under the Apache License, Version 2.0 (the "License"); you may not
 // use this file except in compliance with the License. You may obtain a copy
@@ -25,12 +25,45 @@
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
+#include <iomanip>
+#include <sstream>
 
 #include "astcenccli_internal.h"
 
 #include "stb_image.h"
 #include "stb_image_write.h"
 #include "tinyexr.h"
+
+/**
+ * @brief Determine the output file name to use for a sliced image write.
+ *
+ * @param img        The source data for the image.
+ * @param filename   The base name of the file to save.
+ * @param index      The slice index to write.
+ *
+ * @return The file name to use when saving the file.
+ */
+static std::string get_output_filename(
+	const astcenc_image* img,
+	const char* filename,
+	unsigned int index
+) {
+	if (img->dim_z <= 1)
+	{
+		return filename;
+	}
+
+	std::string fnmod(filename);
+	std::string fnext = fnmod.substr(fnmod.find_last_of("."));
+
+	// Remove the extension
+	fnmod = fnmod.erase(fnmod.length() - fnext.size());
+
+	// Insert the file index into the base name, then append the extension
+	std::stringstream ss;
+	ss << fnmod << "_" << std::setw(3) << std::setfill('0') << index << fnext;
+	return ss.str();
+}
 
 /* ============================================================================
   Image load and store through the stb_image and tinyexr libraries
@@ -59,7 +92,7 @@ static astcenc_image* load_image_with_tinyexr(
 	int load_res = LoadEXR(&image, &dim_x, &dim_y, filename, &err);
 	if (load_res != TINYEXR_SUCCESS)
 	{
-		printf("ERROR: Failed to load image %s (%s)\n", filename, err);
+		print_error("ERROR: Failed to load image %s (%s)\n", filename, err);
 		free(reinterpret_cast<void*>(const_cast<char*>(err)));
 		return nullptr;
 	}
@@ -115,7 +148,7 @@ static astcenc_image* load_image_with_stb(
 		}
 	}
 
-	printf("ERROR: Failed to load image %s (%s)\n", filename, stbi_failure_reason());
+	print_error("ERROR: Failed to load image %s (%s)\n", filename, stbi_failure_reason());
 	return nullptr;
 }
 
@@ -133,9 +166,21 @@ static bool store_exr_image_with_tinyexr(
 	const char* filename,
 	int y_flip
 ) {
-	float *buf = floatx4_array_from_astc_img(img, y_flip);
-	int res = SaveEXR(buf, img->dim_x, img->dim_y, 4, 1, filename, nullptr);
-	delete[] buf;
+	int res { 0 };
+
+	for (unsigned int i = 0; i < img->dim_z; i++)
+	{
+		std::string fnmod = get_output_filename(img, filename, i);
+		float* buf = floatx4_array_from_astc_img(img, y_flip, i);
+
+		res = SaveEXR(buf, img->dim_x, img->dim_y, 4, 1, fnmod.c_str(), nullptr);
+		delete[] buf;
+		if (res < 0)
+		{
+			break;
+		}
+	}
+
 	return res >= 0;
 }
 
@@ -153,11 +198,23 @@ static bool store_png_image_with_stb(
 	const char* filename,
 	int y_flip
 ) {
-	assert(img->data_type == ASTCENC_TYPE_U8);
-	uint8_t* buf = reinterpret_cast<uint8_t*>(img->data[0]);
+	int res { 0 };
 
-	stbi_flip_vertically_on_write(y_flip);
-	int res = stbi_write_png(filename, img->dim_x, img->dim_y, 4, buf, img->dim_x * 4);
+	assert(img->data_type == ASTCENC_TYPE_U8);
+
+	for (unsigned int i = 0; i < img->dim_z; i++)
+	{
+		std::string fnmod = get_output_filename(img, filename, i);
+		uint8_t* buf = reinterpret_cast<uint8_t*>(img->data[i]);
+
+		stbi_flip_vertically_on_write(y_flip);
+		res = stbi_write_png(fnmod.c_str(), img->dim_x, img->dim_y, 4, buf, img->dim_x * 4);
+		if (res == 0)
+		{
+			break;
+		}
+	}
+
 	return res != 0;
 }
 
@@ -175,11 +232,23 @@ static bool store_tga_image_with_stb(
 	const char* filename,
 	int y_flip
 ) {
-	assert(img->data_type == ASTCENC_TYPE_U8);
-	uint8_t* buf = reinterpret_cast<uint8_t*>(img->data[0]);
+	int res { 0 };
 
-	stbi_flip_vertically_on_write(y_flip);
-	int res = stbi_write_tga(filename, img->dim_x, img->dim_y, 4, buf);
+	assert(img->data_type == ASTCENC_TYPE_U8);
+
+	for (unsigned int i = 0; i < img->dim_z; i++)
+	{
+		std::string fnmod = get_output_filename(img, filename, i);
+		uint8_t* buf = reinterpret_cast<uint8_t*>(img->data[i]);
+
+		stbi_flip_vertically_on_write(y_flip);
+		res = stbi_write_tga(fnmod.c_str(), img->dim_x, img->dim_y, 4, buf);
+		if (res == 0)
+		{
+			break;
+		}
+	}
+
 	return res != 0;
 }
 
@@ -197,11 +266,23 @@ static bool store_bmp_image_with_stb(
 	const char* filename,
 	int y_flip
 ) {
-	assert(img->data_type == ASTCENC_TYPE_U8);
-	uint8_t* buf = reinterpret_cast<uint8_t*>(img->data[0]);
+	int res { 0 };
 
-	stbi_flip_vertically_on_write(y_flip);
-	int res = stbi_write_bmp(filename, img->dim_x, img->dim_y, 4, buf);
+	assert(img->data_type == ASTCENC_TYPE_U8);
+
+	for (unsigned int i = 0; i < img->dim_z; i++)
+	{
+		std::string fnmod = get_output_filename(img, filename, i);
+		uint8_t* buf = reinterpret_cast<uint8_t*>(img->data[i]);
+
+		stbi_flip_vertically_on_write(y_flip);
+		res = stbi_write_bmp(fnmod.c_str(), img->dim_x, img->dim_y, 4, buf);
+		if (res == 0)
+		{
+			break;
+		}
+	}
+
 	return res != 0;
 }
 
@@ -219,9 +300,21 @@ static bool store_hdr_image_with_stb(
 	const char* filename,
 	int y_flip
 ) {
-	float* buf = floatx4_array_from_astc_img(img, y_flip);
-	int res = stbi_write_hdr(filename, img->dim_x, img->dim_y, 4, buf);
-	delete[] buf;
+	int res { 0 };
+
+	for (unsigned int i = 0; i < img->dim_z; i++)
+	{
+		std::string fnmod = get_output_filename(img, filename, i);
+		float* buf = floatx4_array_from_astc_img(img, y_flip, i);
+
+		res = stbi_write_hdr(fnmod.c_str(), img->dim_x, img->dim_y, 4, buf);
+		delete[] buf;
+		if (res == 0)
+		{
+			break;
+		}
+	}
+
 	return res != 0;
 }
 
@@ -778,7 +871,7 @@ static unsigned int get_format(
 ) {
 	for (auto& it : ASTC_FORMATS)
 	{
-		if ((it.x == x) && (it.y == y) && (it.z == z)  && (it.is_srgb == is_srgb))
+		if ((it.x == x) && (it.y == y) && (it.z == z) && (it.is_srgb == is_srgb))
 		{
 			return it.format;
 		}
@@ -2370,7 +2463,7 @@ int load_cimage(
 	std::ifstream file(filename, std::ios::in | std::ios::binary);
 	if (!file)
 	{
-		printf("ERROR: File open failed '%s'\n", filename);
+		print_error("ERROR: File open failed '%s'\n", filename);
 		return 1;
 	}
 
@@ -2378,14 +2471,14 @@ int load_cimage(
 	file.read(reinterpret_cast<char*>(&hdr), sizeof(astc_header));
 	if (!file)
 	{
-		printf("ERROR: File read failed '%s'\n", filename);
+		print_error("ERROR: File read failed '%s'\n", filename);
 		return 1;
 	}
 
 	unsigned int magicval = unpack_bytes(hdr.magic[0], hdr.magic[1], hdr.magic[2], hdr.magic[3]);
 	if (magicval != ASTC_MAGIC_ID)
 	{
-		printf("ERROR: File not recognized '%s'\n", filename);
+		print_error("ERROR: File not recognized '%s'\n", filename);
 		return 1;
 	}
 
@@ -2400,7 +2493,7 @@ int load_cimage(
 
 	if (dim_x == 0 || dim_y == 0 || dim_z == 0)
 	{
-		printf("ERROR: File corrupt '%s'\n", filename);
+		print_error("ERROR: File corrupt '%s'\n", filename);
 		return 1;
 	}
 
@@ -2414,7 +2507,7 @@ int load_cimage(
 	file.read(reinterpret_cast<char*>(buffer), data_size);
 	if (!file)
 	{
-		printf("ERROR: File read failed '%s'\n", filename);
+		print_error("ERROR: File read failed '%s'\n", filename);
 		return 1;
 	}
 
@@ -2459,7 +2552,7 @@ int store_cimage(
 	std::ofstream file(filename, std::ios::out | std::ios::binary);
 	if (!file)
 	{
-		printf("ERROR: File open failed '%s'\n", filename);
+		print_error("ERROR: File open failed '%s'\n", filename);
 		return 1;
 	}
 

@@ -256,8 +256,8 @@ def main():
     last1x = "1.7"
     last2x = "2.5"
     last3x = "3.7"
-    prev4x = "4.0"
-    last4x = "4.2"
+    prev4x = "4.3"
+    last4x = "4.4"
     lastMain = "main"
 
     charts = [
@@ -380,6 +380,19 @@ def main():
             f"ref-{prev4x}-avx2",
             None,
             "results-relative-4.x-vs-4.x.png",
+            (relXLimits, None)
+        ],
+        # --------------------------------------------------------
+        # Latest 4.x vs previous 4.x release charts
+        [
+            # Relative scores
+            ["thorough", "medium", "fast", "fastest"],
+            [f"ref-{lastMain}-avx2"],
+            ["4x4", "6x6", "8x8"],
+            True,
+            f"ref-{last4x}-avx2",
+            None,
+            "results-relative-main-vs-4.x.png",
             (relXLimits, None)
         ]
     ]

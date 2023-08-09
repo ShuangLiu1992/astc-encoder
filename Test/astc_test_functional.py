@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: Apache-2.0
 # -----------------------------------------------------------------------------
-# Copyright 2020-2022 Arm Limited
+# Copyright 2020-2023 Arm Limited
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may not
 # use this file except in compliance with the License. You may obtain a copy
@@ -804,27 +804,6 @@ class CLIPTest(CLITestBase):
                     colOut = tli.Image(imOut2).get_colors((7, 7))
                     self.assertColorSame(colIn, colOut2)
 
-    def test_compress_mask(self):
-        """
-        Test compression of mask textures.
-        """
-        decompFile = self.get_tmp_image_path("LDR", "decomp")
-
-        command = [
-            self.binary, "-tl",
-            "./Test/Images/Small/LDR-RGB/ldr-rgb-10.png",
-            decompFile, "4x4", "-medium"]
-
-        noMaskdB = float(self.exec(command, LDR_RGB_PSNR_PATTERN))
-
-        command.append("-mask")
-        maskdB = float(self.exec(command, LDR_RGB_PSNR_PATTERN))
-
-        # Note that this test simply asserts that the "-mask" is connected and
-        # affects the output. We don't test it does something useful; that it
-        # outside the scope of this test case.
-        self.assertNotEqual(noMaskdB, maskdB)
-
     def test_compress_normal_psnr(self):
         """
         Test compression of normal textures using PSNR error metrics.
@@ -1296,6 +1275,74 @@ class CLIPTest(CLITestBase):
         # RMSE should get worse (higher) if we reduce search space
         self.assertGreater(testRMSE, refRMSE)
 
+    def test_2partition_candidate_limit(self):
+        """
+        Test 2 partition partitioning candidate limit.
+        """
+        inputFile = "./Test/Images/Small/LDR-RGBA/ldr-rgba-00.png"
+        decompFile = self.get_tmp_image_path("LDR", "decomp")
+
+        # Compute the basic image without any channel weights
+        command = [
+            self.binary, "-tl",
+            inputFile, decompFile, "4x4", "-medium"]
+
+        self.exec(command)
+        refRMSE = sum(self.get_channel_rmse(inputFile, decompFile))
+
+        command += ["-2partitioncandidatelimit", "1"]
+        self.exec(command)
+        testRMSE = sum(self.get_channel_rmse(inputFile, decompFile))
+
+        # RMSE should get worse (higher) if we reduce search space
+        self.assertGreater(testRMSE, refRMSE)
+
+    def test_3partition_candidate_limit(self):
+        """
+        Test 3 partition partitioning candidate limit.
+        """
+        inputFile = "./Test/Images/Small/LDR-RGBA/ldr-rgba-00.png"
+        decompFile = self.get_tmp_image_path("LDR", "decomp")
+
+        # Compute the basic image without any channel weights
+        command = [
+            self.binary, "-tl",
+            inputFile, decompFile, "4x4", "-medium"]
+
+        self.exec(command)
+        refRMSE = sum(self.get_channel_rmse(inputFile, decompFile))
+
+        command += ["-3partitioncandidatelimit", "1"]
+        self.exec(command)
+        testRMSE = sum(self.get_channel_rmse(inputFile, decompFile))
+
+        # RMSE should get worse (higher) if we reduce search space
+        self.assertGreater(testRMSE, refRMSE)
+
+    def test_4partition_candidate_limit(self):
+        """
+        Test 4 partition partitioning candidate limit.
+        """
+        inputFile = "./Test/Images/Small/LDR-RGBA/ldr-rgba-00.png"
+        decompFile = self.get_tmp_image_path("LDR", "decomp")
+
+        # Compute the basic image without any channel weights
+        command = [
+            self.binary, "-tl",
+            inputFile, decompFile, "4x4", "-medium"]
+
+        self.exec(command)
+        refRMSE = sum(self.get_channel_rmse(inputFile, decompFile))
+
+        command += ["-4partitioncandidatelimit", "1"]
+        self.exec(command)
+
+        # RMSE should get worse (higher) if we reduce search space
+        # Don't check this here, as 4 partitions not used in any Small image
+        # even for -exhaustive, BUT command line option must be accepted and
+        # not error ...
+        # self.assertGreater(testRMSE, refRMSE)
+
     @unittest.skipIf(os.cpu_count() == 1, "Cannot test on single core host")
     def test_thread_count(self):
         """
@@ -1424,7 +1471,7 @@ class CLINTest(CLITestBase):
         # If we expected a pass, then rcode == 0
         if expectPass:
             self.assertEqual(rcode, 0, "Exec did not pass as expected")
-            self.assertNotIn("ERROR", result.stdout)
+            self.assertNotIn("ERROR", result.stderr)
             return
 
         # If we got a negative that's always bad (signal of some kind)
@@ -1434,7 +1481,7 @@ class CLINTest(CLITestBase):
 
         # Otherwise just assert that we got an error log, and some positive
         # return code value was returned
-        self.assertIn("ERROR", result.stdout)
+        self.assertIn("ERROR", result.stderr)
         self.assertGreater(rcode, 0, "Exec did not fail as expected")
 
     def exec_with_omit(self, command, startOmit):
@@ -1791,7 +1838,7 @@ class CLINTest(CLITestBase):
         # Run the command, incrementally omitting arguments
         self.exec_with_omit(command, 7)
 
-    def test_cl_2partitionlimit_missing_args(self):
+    def test_cl_2partitionindexlimit_missing_args(self):
         """
         Test -cl with -2partitionindexlimit and missing arguments.
         """
@@ -1806,7 +1853,7 @@ class CLINTest(CLITestBase):
         # Run the command, incrementally omitting arguments
         self.exec_with_omit(command, 7)
 
-    def test_cl_3partitionlimit_missing_args(self):
+    def test_cl_3partitionindexlimit_missing_args(self):
         """
         Test -cl with -3partitionindexlimit and missing arguments.
         """
@@ -1821,7 +1868,7 @@ class CLINTest(CLITestBase):
         # Run the command, incrementally omitting arguments
         self.exec_with_omit(command, 7)
 
-    def test_cl_4partitionlimit_missing_args(self):
+    def test_cl_4partitionindexlimit_missing_args(self):
         """
         Test -cl with -4partitionindexlimit and missing arguments.
         """
@@ -1832,6 +1879,52 @@ class CLINTest(CLITestBase):
             self.get_tmp_image_path("LDR", "comp"),
             "4x4", "-fast",
             "-4partitionindexlimit", "3"]
+
+        # Run the command, incrementally omitting arguments
+        self.exec_with_omit(command, 7)
+
+    def test_cl_2partitioncandidatelimit_missing_args(self):
+        """
+        Test -cl with -2partitioncandidatelimit and missing arguments.
+        """
+        # Build a valid command
+        command = [
+            self.binary, "-cl",
+            self.get_ref_image_path("LDR", "input", "A"),
+            self.get_tmp_image_path("LDR", "comp"),
+            "4x4", "-fast",
+            "-2partitioncandidatelimit", "1"]
+
+        # Run the command, incrementally omitting arguments
+        self.exec_with_omit(command, 7)
+
+    def test_cl_3partitioncandidatelimit_missing_args(self):
+        """
+        Test -cl with -3partitioncandidatelimit and missing arguments.
+        """
+        # Build a valid command
+        command = [
+            self.binary, "-cl",
+            self.get_ref_image_path("LDR", "input", "A"),
+            self.get_tmp_image_path("LDR", "comp"),
+            "4x4", "-fast",
+            "-3partitioncandidatelimit", "3"]
+
+        # Run the command, incrementally omitting arguments
+        self.exec_with_omit(command, 7)
+
+
+    def test_cl_4partitioncandidatelimit_missing_args(self):
+        """
+        Test -cl with -4partitioncandidatelimit and missing arguments.
+        """
+        # Build a valid command
+        command = [
+            self.binary, "-cl",
+            self.get_ref_image_path("LDR", "input", "A"),
+            self.get_tmp_image_path("LDR", "comp"),
+            "4x4", "-fast",
+            "-4partitioncandidatelimit", "3"]
 
         # Run the command, incrementally omitting arguments
         self.exec_with_omit(command, 7)

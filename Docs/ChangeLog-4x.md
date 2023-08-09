@@ -7,6 +7,163 @@ All performance data on this page is measured on an Intel Core i5-9600K
 clocked at 4.2 GHz, running `astcenc` using AVX2 and 6 threads.
 
 <!-- ---------------------------------------------------------------------- -->
+## 4.6.0
+
+**Status:** In development
+
+The 4.6.0 release retunes the compressor heuristics to give improvements to
+performance for trivial losses to image quality.
+
+Reminder - the codec library API is not designed to be binary compatible across
+versions. We always recommend rebuilding your client-side code using the updated
+`astcenc.h` header.
+
+* **General:**
+  * **Optimization:** `-medium` search quality no longer tests 4 partition
+     encodings for block sizes between 25 and 83 texels (inclusive). This
+     improves performance for a tiny drop in image quality.
+  * **Optimization:** `-thorough` and higher search qualities no longer test the
+     mode0 first search for block sizes between 25 and 83 texels (inclusive).
+     This improves performance for a tiny drop in image quality.
+  * **Optimization:** `TUNE_MAX_PARTITIONING_CANDIDATES` reduced from 32 to 8
+     to reduce the size of stack allocated data structures. This causes a tiny
+     drop in image quality for the `-verythorough` and `-exhaustive` presets.
+
+<!-- ---------------------------------------------------------------------- -->
+## 4.5.0
+
+**Status:** June 2023
+
+The 4.5.0 release is a maintenance release with small image quality
+improvements, and a number of build system quality of life improvements.
+
+* **General:**
+  * **Bug-fix:** Improved handling compiler arguments in CMake, including
+    consistent use of MSVC-style command line arguments for ClangCL.
+  * **Bug-fix:** Invariant Clang builds now use `-ffp-model=precise` with
+    `-ffp-contract=off` which is needed to restore invariance due to recent
+    changes in compiler defaults.
+  * **Change:** macOS binary releases are now distributed as a single universal
+    binary for all platforms.
+  * **Change:** Windows binary releases are now compiled with VS2022.
+  * **Change:** Invariant MSVC builds for VS2022 now use `/fp:precise` instead
+    of `/fp:strict`, which is is now possible because precise no longer implies
+    contraction. This should improve performance for MSVC builds.
+  * **Change:** Non-invariant Clang builds now use `-ffp-model=precise` with
+    `-ffp-contract=on`. This should improve performance on older Clang
+    versions which defaulted to no contraction.
+  * **Change:** Non-invariant MSVC builds for VS2022 now use `/fp:precise`
+    with `/fp:contract`. This should improve performance for MSVC builds.
+  * **Change:** CMake config variables now use an `ASTCENC_` prefix to add a
+    namespace and group options when the library is used in a larger project.
+  * **Change:** CMake config `ASTCENC_UNIVERSAL_BUILD` for building macOS
+    universal binaries has been improved to include the `x86_64h` slice for
+    AVX2 builds. Universal builds are now on by default for macOS, and always
+    include NEON (arm64), SSE4.1 (x86_64), and AVX2 (x86_64h) variants.
+  * **Change:** CMake config `ASTCENC_NO_INVARIANCE` has been inverted to
+    remove the negated option, and is now `ASTCENC_INVARIANCE` with a default
+    of `ON`. Disabling this option can substantially improve performance, but
+    images can different across platforms and compilers.
+  * **Optimization:** Color quantization and packing for LDR RGB and RGBA has
+    been vectorized to improve performance.
+  * **Change:** Color quantization for LDR RGB and RGBA endpoints will now try
+    multiple quantization packing methods, and pick the one with the lowest
+    endpoint encoding error. This gives a minor image quality improvement, for
+    no significant performance impact when combined with the vectorization
+    optimizations.
+
+<!-- ---------------------------------------------------------------------- -->
+## 4.4.0
+
+**Status:** March 2023
+
+The 4.4.0 release is a minor release with image quality improvements, a small
+performance boost, and a few new quality-of-life features.
+
+* **General:**
+  * **Change:** Core library no longer checks availability of required
+    instruction set extensions, such as SSE4.1 or AVX2. Checking compatibility
+    is now the responsibility of the caller. See `astcenccli_entry.cpp` for
+    an example of code performing this check.
+  * **Change:** Core library can be built as a shared object by setting the
+    `-DSHAREDLIB=ON` CMake option, resulting in e.g. `libastcenc-avx2-shared.so`.
+    Note that the command line tool is always statically linked.
+  * **Change:** Decompressed 3D images will now write one output file per
+    slice, if the target format is a 2D image format.
+  * **Change:** Command line errors print to stderr instead of stdout.
+  * **Change:** Color encoding uses new quantization tables, that now factor
+    in floating-point rounding if a distance tie is found when using the
+    integer quant256 value. This improves image quality for 4x4 and 5x5 block
+    sizes.
+  * **Optimization:** Partition selection uses a simplified line calculation
+    with a faster approximation. This improves performance for all block sizes.
+  * **Bug-fix:** Fixed missing symbol error in decompressor-only builds.
+  * **Bug-fix:** Fixed infinity handling in debug trace JSON files.
+
+### Performance:
+
+Key for charts:
+
+* Color = block size (see legend).
+* Letter = image format (N = normal map, G = grayscale, L = LDR, H = HDR).
+
+**Relative performance vs 4.3 release:**
+
+![Relative scores 4.4 vs 4.3](./ChangeLogImg/relative-4.3-to-4.4.png)
+
+<!-- ---------------------------------------------------------------------- -->
+## 4.3.1
+
+**Status:** January 2023
+
+The 4.3.1 release is a minor maintenance release. No performance or image
+quality changes are expected.
+
+* **General:**
+  * **Bug-fix:** Fixed typo in `-2/3/4partitioncandidatelimit` CLI options.
+  * **Bug-fix:** Fixed handling for `-3/4partitionindexlimit` CLI options.
+  * **Bug-fix:** Updated to `stb_image.h` v2.28, which includes multiple fixes
+    and improvements for image loading.
+
+<!-- ---------------------------------------------------------------------- -->
+## 4.3.0
+
+**Status:** January 2023
+
+The 4.3.0 release is an optimization release. There are minor performance
+and image quality improvements in this release.
+
+Reminder - the codec library API is not designed to be binary compatible across
+versions. We always recommend rebuilding your client-side code using the updated
+`astcenc.h` header.
+
+* **General:**
+  * **Bug-fix:** Use lower case `windows.h` include for MinGW compatibility.
+  * **Change:** The `-mask` command line option, `ASTCENC_FLG_MAP_MASK` in the
+    library API, has been removed.
+  * **Optimization:** Always skip blue-contraction for `QUANT_256` encodings.
+    This gives a small image quality improvement for the 4x4 block size.
+  * **Optimization:** Always skip RGBO vector calculation for LDR encodings.
+  * **Optimization:** Defer color packing and scrambling to physical layer.
+  * **Optimization:** Remove folded `decimation_info` lookup tables. This
+    significantly reduces compressor memory footprint and improves context
+    creation time. Impact increases with the active block size.
+  * **Optimization:** Increased trial and refinement pruning by using stricter
+    target errors when determining whether to skip iterations.
+
+### Performance:
+
+Key for charts:
+
+* Color = block size (see legend).
+* Letter = image format (N = normal map, G = grayscale, L = LDR, H = HDR).
+
+**Relative performance vs 4.2 release:**
+
+![Relative scores 4.3 vs 4.2](./ChangeLogImg/relative-4.2-to-4.3.png)
+
+
+<!-- ---------------------------------------------------------------------- -->
 ## 4.2.0
 
 **Status:** November 2022
@@ -175,4 +332,4 @@ Key for charts:
 
 - - -
 
-_Copyright © 2022, Arm Limited and contributors. All rights reserved._
+_Copyright © 2022-2023, Arm Limited and contributors. All rights reserved._

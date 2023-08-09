@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // ----------------------------------------------------------------------------
-// Copyright 2011-2022 Arm Limited
+// Copyright 2011-2023 Arm Limited
 //
 // Licensed under the Apache License, Version 2.0 (the "License"); you may not
 // use this file except in compliance with the License. You may obtain a copy
@@ -306,7 +306,7 @@ static astcenc_image* load_uncomp_file(
 			std::string slice_name = get_slice_filename(filename, image_index, error);
 			if (error)
 			{
-				printf("ERROR: Image pattern does not contain file extension: %s\n", filename);
+				print_error("ERROR: Image pattern does not contain file extension: %s\n", filename);
 				break;
 			}
 
@@ -322,7 +322,7 @@ static astcenc_image* load_uncomp_file(
 			// Check it is not a 3D image
 			if (slice->dim_z != 1)
 			{
-				printf("ERROR: Image arrays do not support 3D sources: %s\n", slice_name.c_str());
+				print_error("ERROR: Image arrays do not support 3D sources: %s\n", slice_name.c_str());
 				break;
 			}
 
@@ -331,7 +331,7 @@ static astcenc_image* load_uncomp_file(
 			{
 				if ((is_hdr != slice_is_hdr) || (component_count != slice_component_count))
 				{
-					printf("ERROR: Image array[0] and [%d] are different formats\n", image_index);
+					print_error("ERROR: Image array[0] and [%d] are different formats\n", image_index);
 					break;
 				}
 
@@ -339,7 +339,7 @@ static astcenc_image* load_uncomp_file(
 				    (slices[0]->dim_y != slice->dim_y) ||
 				    (slices[0]->dim_z != slice->dim_z))
 				{
-					printf("ERROR: Image array[0] and [%d] are different dimensions\n", image_index);
+					print_error("ERROR: Image array[0] and [%d] are different dimensions\n", image_index);
 					break;
 				}
 			}
@@ -431,7 +431,7 @@ static int parse_commandline_options(
 
 	if (operation == ASTCENC_OP_UNKNOWN)
 	{
-		printf("ERROR: Unrecognized operation '%s'\n", argv[1]);
+		print_error("ERROR: Unrecognized operation '%s'\n", argv[1]);
 		return 1;
 	}
 
@@ -482,7 +482,7 @@ static int init_astcenc_config(
 		// Read and decode block size
 		if (argc < 5)
 		{
-			printf("ERROR: Block size must be specified\n");
+			print_error("ERROR: Block size must be specified\n");
 			return 1;
 		}
 
@@ -492,14 +492,14 @@ static int init_astcenc_config(
 		// Character after the last match should be a NUL
 		if (!(((dimensions == 2) && !argv[4][cnt2D]) || ((dimensions == 3) && !argv[4][cnt3D])))
 		{
-			printf("ERROR: Block size '%s' is invalid\n", argv[4]);
+			print_error("ERROR: Block size '%s' is invalid\n", argv[4]);
 			return 1;
 		}
 
 		// Read and decode search quality
 		if (argc < 6)
 		{
-			printf("ERROR: Search quality level must be specified\n");
+			print_error("ERROR: Search quality level must be specified\n");
 			return 1;
 		}
 
@@ -533,7 +533,7 @@ static int init_astcenc_config(
 		}
 		else
 		{
-			printf("ERROR: Search quality/preset '%s' is invalid\n", argv[5]);
+			print_error("ERROR: Search quality/preset '%s' is invalid\n", argv[5]);
 			return 1;
 		}
 
@@ -550,10 +550,6 @@ static int init_astcenc_config(
 			// Skip over the data value for now
 			argidx++;
 			flags |= ASTCENC_FLG_USE_ALPHA_WEIGHT;
-		}
-		else if (!strcmp(argv[argidx], "-mask"))
-		{
-			flags |= ASTCENC_FLG_MAP_MASK;
 		}
 		else if (!strcmp(argv[argidx], "-normal"))
 		{
@@ -573,7 +569,7 @@ static int init_astcenc_config(
 		{
 			if (preprocess != ASTCENC_PP_NONE)
 			{
-				printf("ERROR: Only a single image preprocess can be used\n");
+				print_error("ERROR: Only a single image preprocess can be used\n");
 				return 1;
 			}
 			preprocess = ASTCENC_PP_NORMALIZE;
@@ -582,7 +578,7 @@ static int init_astcenc_config(
 		{
 			if (preprocess != ASTCENC_PP_NONE)
 			{
-				printf("ERROR: Only a single image preprocess can be used\n");
+				print_error("ERROR: Only a single image preprocess can be used\n");
 				return 1;
 			}
 			preprocess = ASTCENC_PP_PREMULTIPLY;
@@ -611,22 +607,17 @@ static int init_astcenc_config(
 	                                           quality, flags, &config);
 	if (status == ASTCENC_ERR_BAD_BLOCK_SIZE)
 	{
-		printf("ERROR: Block size '%s' is invalid\n", argv[4]);
-		return 1;
-	}
-	else if (status == ASTCENC_ERR_BAD_CPU_ISA)
-	{
-		printf("ERROR: Required SIMD ISA support missing on this CPU\n");
+		print_error("ERROR: Block size '%s' is invalid\n", argv[4]);
 		return 1;
 	}
 	else if (status == ASTCENC_ERR_BAD_CPU_FLOAT)
 	{
-		printf("ERROR: astcenc must not be compiled with -ffast-math\n");
+		print_error("ERROR: astcenc must not be compiled with -ffast-math\n");
 		return 1;
 	}
 	else if (status != ASTCENC_SUCCESS)
 	{
-		printf("ERROR: Init config failed with %s\n", astcenc_get_error_string(status));
+		print_error("ERROR: Init config failed with %s\n", astcenc_get_error_string(status));
 		return 1;
 	}
 
@@ -666,7 +657,7 @@ static int edit_astcenc_config(
 			argidx += 5;
 			if (argidx > argc)
 			{
-				printf("ERROR: -cw switch with less than 4 arguments\n");
+				print_error("ERROR: -cw switch with less than 4 arguments\n");
 				return 1;
 			}
 
@@ -680,7 +671,7 @@ static int edit_astcenc_config(
 			argidx += 2;
 			if (argidx > argc)
 			{
-				printf("ERROR: -a switch with no argument\n");
+				print_error("ERROR: -a switch with no argument\n");
 				return 1;
 			}
 
@@ -691,13 +682,13 @@ static int edit_astcenc_config(
 			argidx += 2;
 			if (argidx > argc)
 			{
-				printf("ERROR: -esw switch with no argument\n");
+				print_error("ERROR: -esw switch with no argument\n");
 				return 1;
 			}
 
 			if (strlen(argv[argidx - 1]) != 4)
 			{
-				printf("ERROR: -esw pattern does not contain 4 characters\n");
+				print_error("ERROR: -esw pattern does not contain 4 characters\n");
 				return 1;
 			}
 
@@ -725,7 +716,7 @@ static int edit_astcenc_config(
 					swizzle_components[i] = ASTCENC_SWZ_1;
 					break;
 				default:
-					printf("ERROR: -esw component '%c' is not valid\n", argv[argidx - 1][i]);
+					print_error("ERROR: -esw component '%c' is not valid\n", argv[argidx - 1][i]);
 					return 1;
 				}
 			}
@@ -740,20 +731,20 @@ static int edit_astcenc_config(
 			argidx += 2;
 			if (argidx > argc)
 			{
-				printf("ERROR: -ssw switch with no argument\n");
+				print_error("ERROR: -ssw switch with no argument\n");
 				return 1;
 			}
 
 			size_t char_count = strlen(argv[argidx - 1]);
 			if (char_count == 0)
 			{
-				printf("ERROR: -ssw pattern contains no characters\n");
+				print_error("ERROR: -ssw pattern contains no characters\n");
 				return 1;
 			}
 
 			if (char_count > 4)
 			{
-				printf("ERROR: -ssw pattern contains more than 4 characters\n");
+				print_error("ERROR: -ssw pattern contains more than 4 characters\n");
 				return 1;
 			}
 
@@ -779,7 +770,7 @@ static int edit_astcenc_config(
 					found_a = true;
 					break;
 				default:
-					printf("ERROR: -ssw component '%c' is not valid\n", argv[argidx - 1][i]);
+					print_error("ERROR: -ssw component '%c' is not valid\n", argv[argidx - 1][i]);
 					return 1;
 				}
 			}
@@ -794,13 +785,13 @@ static int edit_astcenc_config(
 			argidx += 2;
 			if (argidx > argc)
 			{
-				printf("ERROR: -dsw switch with no argument\n");
+				print_error("ERROR: -dsw switch with no argument\n");
 				return 1;
 			}
 
 			if (strlen(argv[argidx - 1]) != 4)
 			{
-				printf("ERROR: -dsw switch does not contain 4 characters\n");
+				print_error("ERROR: -dsw switch does not contain 4 characters\n");
 				return 1;
 			}
 
@@ -831,7 +822,7 @@ static int edit_astcenc_config(
 					swizzle_components[i] =  ASTCENC_SWZ_Z;
 					break;
 				default:
-					printf("ERROR: ERROR: -dsw component '%c' is not valid\n", argv[argidx - 1][i]);
+					print_error("ERROR: ERROR: -dsw component '%c' is not valid\n", argv[argidx - 1][i]);
 					return 1;
 				}
 			}
@@ -842,10 +833,6 @@ static int edit_astcenc_config(
 			cli_config.swz_decode.a = swizzle_components[3];
 		}
 		// presets begin here
-		else if (!strcmp(argv[argidx], "-mask"))
-		{
-			argidx++;
-		}
 		else if (!strcmp(argv[argidx], "-normal"))
 		{
 			argidx++;
@@ -865,7 +852,7 @@ static int edit_astcenc_config(
 			argidx += 2;
 			if (argidx > argc)
 			{
-				printf("ERROR: -rgbm switch with no argument\n");
+				print_error("ERROR: -rgbm switch with no argument\n");
 				return 1;
 			}
 
@@ -889,7 +876,7 @@ static int edit_astcenc_config(
 			argidx += 2;
 			if (argidx > argc)
 			{
-				printf("ERROR: -blockmodelimit switch with no argument\n");
+				print_error("ERROR: -blockmodelimit switch with no argument\n");
 				return 1;
 			}
 
@@ -900,7 +887,7 @@ static int edit_astcenc_config(
 			argidx += 2;
 			if (argidx > argc)
 			{
-				printf("ERROR: -partitioncountlimit switch with no argument\n");
+				print_error("ERROR: -partitioncountlimit switch with no argument\n");
 				return 1;
 			}
 
@@ -911,7 +898,7 @@ static int edit_astcenc_config(
 			argidx += 2;
 			if (argidx > argc)
 			{
-				printf("ERROR: -2partitionindexlimit switch with no argument\n");
+				print_error("ERROR: -2partitionindexlimit switch with no argument\n");
 				return 1;
 			}
 
@@ -922,51 +909,51 @@ static int edit_astcenc_config(
 			argidx += 2;
 			if (argidx > argc)
 			{
-				printf("ERROR: -3partitionindexlimit switch with no argument\n");
+				print_error("ERROR: -3partitionindexlimit switch with no argument\n");
 				return 1;
 			}
 
-			config.tune_2partition_index_limit = atoi(argv[argidx - 1]);
+			config.tune_3partition_index_limit = atoi(argv[argidx - 1]);
 		}
 		else if (!strcmp(argv[argidx], "-4partitionindexlimit"))
 		{
 			argidx += 2;
 			if (argidx > argc)
 			{
-				printf("ERROR: -4partitionindexlimit switch with no argument\n");
+				print_error("ERROR: -4partitionindexlimit switch with no argument\n");
 				return 1;
 			}
 
-			config.tune_2partition_index_limit = atoi(argv[argidx - 1]);
+			config.tune_4partition_index_limit = atoi(argv[argidx - 1]);
 		}
-		else if (!strcmp(argv[argidx], "-2partitioncandiatelimit"))
+		else if (!strcmp(argv[argidx], "-2partitioncandidatelimit"))
 		{
 			argidx += 2;
 			if (argidx > argc)
 			{
-				printf("ERROR: -2partitioncandidatelimit switch with no argument\n");
+				print_error("ERROR: -2partitioncandidatelimit switch with no argument\n");
 				return 1;
 			}
 
 			config.tune_2partitioning_candidate_limit = atoi(argv[argidx - 1]);
 		}
-		else if (!strcmp(argv[argidx], "-3partitioncandiatelimit"))
+		else if (!strcmp(argv[argidx], "-3partitioncandidatelimit"))
 		{
 			argidx += 2;
 			if (argidx > argc)
 			{
-				printf("ERROR: -3partitioncandiatelimit switch with no argument\n");
+				print_error("ERROR: -3partitioncandidatelimit switch with no argument\n");
 				return 1;
 			}
 
 			config.tune_3partitioning_candidate_limit = atoi(argv[argidx - 1]);
 		}
-		else if (!strcmp(argv[argidx], "-4partitioncandiatelimit"))
+		else if (!strcmp(argv[argidx], "-4partitioncandidatelimit"))
 		{
 			argidx += 2;
 			if (argidx > argc)
 			{
-				printf("ERROR: -4partitioncandiatelimit switch with no argument\n");
+				print_error("ERROR: -4partitioncandidatelimit switch with no argument\n");
 				return 1;
 			}
 
@@ -977,7 +964,7 @@ static int edit_astcenc_config(
 			argidx += 2;
 			if (argidx > argc)
 			{
-				printf("ERROR: -dblimit switch with no argument\n");
+				print_error("ERROR: -dblimit switch with no argument\n");
 				return 1;
 			}
 
@@ -991,40 +978,40 @@ static int edit_astcenc_config(
 			argidx += 2;
 			if (argidx > argc)
 			{
-				printf("ERROR: -2partitionlimitfactor switch with no argument\n");
+				print_error("ERROR: -2partitionlimitfactor switch with no argument\n");
 				return 1;
 			}
 
-			config.tune_2_partition_early_out_limit_factor = static_cast<float>(atof(argv[argidx - 1]));
+			config.tune_2partition_early_out_limit_factor = static_cast<float>(atof(argv[argidx - 1]));
 		}
 		else if (!strcmp(argv[argidx], "-3partitionlimitfactor"))
 		{
 			argidx += 2;
 			if (argidx > argc)
 			{
-				printf("ERROR: -3partitionlimitfactor switch with no argument\n");
+				print_error("ERROR: -3partitionlimitfactor switch with no argument\n");
 				return 1;
 			}
 
-			config.tune_3_partition_early_out_limit_factor = static_cast<float>(atof(argv[argidx - 1]));
+			config.tune_3partition_early_out_limit_factor = static_cast<float>(atof(argv[argidx - 1]));
 		}
 		else if (!strcmp(argv[argidx], "-2planelimitcorrelation"))
 		{
 			argidx += 2;
 			if (argidx > argc)
 			{
-				printf("ERROR: -2planelimitcorrelation switch with no argument\n");
+				print_error("ERROR: -2planelimitcorrelation switch with no argument\n");
 				return 1;
 			}
 
-			config.tune_2_plane_early_out_limit_correlation = static_cast<float>(atof(argv[argidx - 1]));
+			config.tune_2plane_early_out_limit_correlation = static_cast<float>(atof(argv[argidx - 1]));
 		}
 		else if (!strcmp(argv[argidx], "-refinementlimit"))
 		{
 			argidx += 2;
 			if (argidx > argc)
 			{
-				printf("ERROR: -refinementlimit switch with no argument\n");
+				print_error("ERROR: -refinementlimit switch with no argument\n");
 				return 1;
 			}
 
@@ -1035,7 +1022,7 @@ static int edit_astcenc_config(
 			argidx += 2;
 			if (argidx > argc)
 			{
-				printf("ERROR: -candidatelimit switch with no argument\n");
+				print_error("ERROR: -candidatelimit switch with no argument\n");
 				return 1;
 			}
 
@@ -1046,7 +1033,7 @@ static int edit_astcenc_config(
 			argidx += 2;
 			if (argidx > argc)
 			{
-				printf("ERROR: -j switch with no argument\n");
+				print_error("ERROR: -j switch with no argument\n");
 				return 1;
 			}
 
@@ -1057,14 +1044,14 @@ static int edit_astcenc_config(
 			argidx += 2;
 			if (argidx > argc)
 			{
-				printf("ERROR: -repeats switch with no argument\n");
+				print_error("ERROR: -repeats switch with no argument\n");
 				return 1;
 			}
 
 			cli_config.repeat_count = atoi(argv[argidx - 1]);
 			if (cli_config.repeat_count <= 0)
 			{
-				printf("ERROR: -repeats value must be at least one\n");
+				print_error("ERROR: -repeats value must be at least one\n");
 				return 1;
 			}
 		}
@@ -1078,7 +1065,7 @@ static int edit_astcenc_config(
 			argidx += 3;
 			if (argidx > argc)
 			{
-				printf("ERROR: -mpsnr switch with less than 2 arguments\n");
+				print_error("ERROR: -mpsnr switch with less than 2 arguments\n");
 				return 1;
 			}
 
@@ -1086,7 +1073,7 @@ static int edit_astcenc_config(
 			cli_config.high_fstop = atoi(argv[argidx - 1]);
 			if (cli_config.high_fstop < cli_config.low_fstop)
 			{
-				printf("ERROR: -mpsnr switch <low> is greater than the <high>\n");
+				print_error("ERROR: -mpsnr switch <low> is greater than the <high>\n");
 				return 1;
 			}
 		}
@@ -1096,14 +1083,14 @@ static int edit_astcenc_config(
 			// Only supports compressing
 			if (!(operation & ASTCENC_STAGE_COMPRESS))
 			{
-				printf("ERROR: -zdim switch is only valid for compression\n");
+				print_error("ERROR: -zdim switch is only valid for compression\n");
 				return 1;
 			}
 
 			// Image depth must be specified.
 			if (argidx + 2 > argc)
 			{
-				printf("ERROR: -zdim switch with no argument\n");
+				print_error("ERROR: -zdim switch with no argument\n");
 				return 1;
 			}
 			argidx++;
@@ -1111,13 +1098,13 @@ static int edit_astcenc_config(
 			// Read array size (image depth).
 			if (!sscanf(argv[argidx], "%u", &cli_config.array_size) || cli_config.array_size == 0)
 			{
-				printf("ERROR: -zdim size '%s' is invalid\n", argv[argidx]);
+				print_error("ERROR: -zdim size '%s' is invalid\n", argv[argidx]);
 				return 1;
 			}
 
 			if ((cli_config.array_size > 1) && (config.block_z == 1))
 			{
-				printf("ERROR: -zdim with 3D input data for a 2D output format\n");
+				print_error("ERROR: -zdim with 3D input data for a 2D output format\n");
 				return 1;
 			}
 			argidx++;
@@ -1128,7 +1115,7 @@ static int edit_astcenc_config(
 			argidx += 2;
 			if (argidx > argc)
 			{
-				printf("ERROR: -dtrace switch with no argument\n");
+				print_error("ERROR: -dtrace switch with no argument\n");
 				return 1;
 			}
 
@@ -1142,7 +1129,7 @@ static int edit_astcenc_config(
 		}
 		else // check others as well
 		{
-			printf("ERROR: Argument '%s' not recognized\n", argv[argidx]);
+			print_error("ERROR: Argument '%s' not recognized\n", argv[argidx]);
 			return 1;
 		}
 	}
@@ -1158,7 +1145,7 @@ static int edit_astcenc_config(
 
 	if (!config.trace_file_path)
 	{
-		printf("ERROR: Diagnostics builds must set -dtrace\n");
+		print_error("ERROR: Diagnostics builds must set -dtrace\n");
 		return 1;
 	}
 #endif
@@ -1223,9 +1210,9 @@ static void print_astcenc_config(
 		printf("    3 partition index cutoff:   %u partition ids\n", config.tune_3partition_index_limit);
 		printf("    4 partition index cutoff:   %u partition ids\n", config.tune_4partition_index_limit);
 		printf("    PSNR cutoff:                %g dB\n", static_cast<double>(config.tune_db_limit));
-		printf("    3 partition cutoff:         %g\n", static_cast<double>(config.tune_2_partition_early_out_limit_factor));
-		printf("    4 partition cutoff:         %g\n", static_cast<double>(config.tune_3_partition_early_out_limit_factor));
-		printf("    2 plane correlation cutoff: %g\n", static_cast<double>(config.tune_2_plane_early_out_limit_correlation));
+		printf("    3 partition cutoff:         %g\n", static_cast<double>(config.tune_2partition_early_out_limit_factor));
+		printf("    4 partition cutoff:         %g\n", static_cast<double>(config.tune_3partition_early_out_limit_factor));
+		printf("    2 plane correlation cutoff: %g\n", static_cast<double>(config.tune_2plane_early_out_limit_correlation));
 		printf("    Block mode centile cutoff:  %g%%\n", static_cast<double>(config.tune_block_mode_limit));
 		printf("    Candidate cutoff:           %u candidates\n", config.tune_candidate_limit);
 		printf("    Refinement cutoff:          %u iterations\n", config.tune_refinement_limit);
@@ -1847,7 +1834,7 @@ static void print_diagnostic_images(
  *
  * @return 0 on success, non-zero otherwise.
  */
-int main(
+int astcenc_main(
 	int argc,
 	char **argv
 ) {
@@ -1884,13 +1871,13 @@ int main(
 
 	if (input_filename.empty())
 	{
-		printf("ERROR: Input file not specified\n");
+		print_error("ERROR: Input file not specified\n");
 		return 1;
 	}
 
 	if (output_filename.empty())
 	{
-		printf("ERROR: Output file not specified\n");
+		print_error("ERROR: Output file not specified\n");
 		return 1;
 	}
 
@@ -1930,7 +1917,7 @@ int main(
 		}
 		else
 		{
-			printf("ERROR: Unknown compressed input file type\n");
+			print_error("ERROR: Unknown compressed input file type\n");
 			return 1;
 		}
 	}
@@ -1972,7 +1959,7 @@ int main(
 		{
 			const char *eptr = strrchr(output_filename.c_str(), '.');
 			eptr = eptr ? eptr : "";
-			printf("ERROR: Unknown uncompressed output file type '%s'\n", eptr);
+			print_error("ERROR: Unknown uncompressed output file type '%s'\n", eptr);
 			return 1;
 		}
 	}
@@ -1989,7 +1976,7 @@ int main(
 		{
 			const char *eptr = strrchr(output_filename.c_str(), '.');
 			eptr = eptr ? eptr : "";
-			printf("ERROR: Unknown compressed output file type '%s'\n", eptr);
+			print_error("ERROR: Unknown compressed output file type '%s'\n", eptr);
 			return 1;
 		}
 	}
@@ -1997,7 +1984,7 @@ int main(
 	codec_status = astcenc_context_alloc(&config, cli_config.thread_count, &codec_context);
 	if (codec_status != ASTCENC_SUCCESS)
 	{
-		printf("ERROR: Codec context alloc failed: %s\n", astcenc_get_error_string(codec_status));
+		print_error("ERROR: Codec context alloc failed: %s\n", astcenc_get_error_string(codec_status));
 		return 1;
 	}
 
@@ -2009,7 +1996,7 @@ int main(
 		    image_uncomp_in_is_hdr, image_uncomp_in_component_count);
 		if (!image_uncomp_in)
 		{
-			printf ("ERROR: Failed to load uncompressed image file\n");
+			print_error("ERROR: Failed to load uncompressed image file\n");
 			return 1;
 		}
 
@@ -2024,7 +2011,7 @@ int main(
 			                                      image_uncomp_in->dim_z);
 			if (!image_pp)
 			{
-				printf ("ERROR: Failed to allocate preprocessed image\n");
+				print_error("ERROR: Failed to allocate preprocessed image\n");
 				return 1;
 			}
 
@@ -2125,7 +2112,7 @@ int main(
 
 		if (work.error != ASTCENC_SUCCESS)
 		{
-			printf("ERROR: Codec compress failed: %s\n", astcenc_get_error_string(work.error));
+			print_error("ERROR: Codec compress failed: %s\n", astcenc_get_error_string(work.error));
 			return 1;
 		}
 
@@ -2188,7 +2175,7 @@ int main(
 
 		if (work.error != ASTCENC_SUCCESS)
 		{
-			printf("ERROR: Codec decompress failed: %s\n", astcenc_get_error_string(codec_status));
+			print_error("ERROR: Codec decompress failed: %s\n", astcenc_get_error_string(codec_status));
 			return 1;
 		}
 	}
@@ -2217,7 +2204,7 @@ int main(
 			error = store_cimage(image_comp, output_filename.c_str());
 			if (error)
 			{
-				printf ("ERROR: Failed to store compressed image\n");
+				print_error("ERROR: Failed to store compressed image\n");
 				return 1;
 			}
 		}
@@ -2227,7 +2214,7 @@ int main(
 			error = store_ktx_compressed_image(image_comp, output_filename.c_str(), srgb);
 			if (error)
 			{
-				printf ("ERROR: Failed to store compressed image\n");
+				print_error("ERROR: Failed to store compressed image\n");
 				return 1;
 			}
 		}
@@ -2235,7 +2222,7 @@ int main(
 		{
 			if (!is_null)
 			{
-				printf("ERROR: Unknown compressed output file type\n");
+				print_error("ERROR: Unknown compressed output file type\n");
 				return 1;
 			}
 		}
@@ -2250,7 +2237,7 @@ int main(
 			                                  cli_config.y_flip);
 			if (!store_result)
 			{
-				printf("ERROR: Failed to write output image %s\n", output_filename.c_str());
+				print_error("ERROR: Failed to write output image %s\n", output_filename.c_str());
 				return 1;
 			}
 		}
